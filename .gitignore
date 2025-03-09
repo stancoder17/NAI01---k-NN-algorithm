@@ -23,7 +23,6 @@
 hs_err_pid*
 replay_pid*
 
-
 #custom
 .idea
-.iml
+NAI01/NAI01.iml
