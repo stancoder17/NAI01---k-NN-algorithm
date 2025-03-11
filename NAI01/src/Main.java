@@ -6,82 +6,53 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 public class Main {
+    private static int dimensionsNumber = 0;
+    private static boolean dimensionsFound = false;
+
     public static void main(String[] args) {
-        int k = 35; // normalnie Integer.parseInt(args[0])
+        int k = 1; //Integer.parseInt(args[0]);
+        String dataChosen = "iris"; //args[1];
         int correctCount = 0;
         int incorrectCount = 0;
 
-        File testFile = new File("./iris.test.data");
+        Scanner scanner = new Scanner(System.in);
+
+        // Store in a list for a future user input use
+        List<String> trainingData = new ArrayList<>();
+
+        File testFile = new File("./" + dataChosen + ".test.data");
         try {
             BufferedReader in_test = new BufferedReader(new FileReader(testFile));
             String test_record;
             while ((test_record = in_test.readLine()) != null) {
                 String[] test_record_split = test_record.split(",");
-                String test_attribute = test_record_split[test_record_split.length - 1];
+                String test_decisionAttribute = test_record_split[test_record_split.length - 1];
+
+                if (!dimensionsFound) {
+                    dimensionsNumber = test_record_split.length - 1;
+                    dimensionsFound = true;
+                }
 
                 Map<String, Double> distances = new LinkedHashMap<>();
-                List<Double> testRecordDimensions = new ArrayList<>();
-                int dimensionsNumber;
 
-                for (int i = 0; true; i++) {
-                    try {
-                        testRecordDimensions.add(Double.parseDouble(test_record.split(",")[i]));
-                    } catch (Exception e) {
-                        dimensionsNumber = i;
-                        break;
-                    }
+                File trainFile = new File("./" + dataChosen + ".train.data");
+                BufferedReader in_train = new BufferedReader(new FileReader(trainFile));
+                String line_train;
+                while ((line_train = in_train.readLine()) != null) {
+                    trainingData.add(line_train);
+                    Double distance = calculateDistance(line_train, test_record);
+                    distances.put(line_train, distance);
                 }
 
-                File trainFile = new File("./iris.train.data");
-                try {
-                    BufferedReader in_train = new BufferedReader(new FileReader(trainFile));
-                    String line_train;
-                    while ((line_train = in_train.readLine()) != null) {
-                        String[] lineAllElements = line_train.split(",");
-                        List<Double> lineDimensions = new ArrayList<>();
+                in_train.close();
 
-                        for (int i = 0; i < dimensionsNumber; i++)
-                            lineDimensions.add(Double.parseDouble(lineAllElements[i]));
+                distances = sortAndLimitMap(distances, k);
+                String train_attribute_mostCount = extractMostCountedAttribute(distances);
 
-                        double sum = 0.0;
-
-                        // Getting sum of (x1 - x2)^2
-                        for (int i = 0; i < dimensionsNumber; i++)
-                            sum += Math.pow(testRecordDimensions.get(i) - lineDimensions.get(i), 2);
-
-                        Double result = Math.sqrt(sum);
-
-                        distances.put(line_train, result);
-                    }
-
-                    in_train.close();
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-                distances = distances.entrySet().stream()
-                        .sorted(Map.Entry.comparingByValue())
-                        .limit(k)
-                        .collect(Collectors.toMap(
-                                Map.Entry::getKey, Map.Entry::getValue, (e1, e2) -> e1, LinkedHashMap::new
-                        ));
-
-                Map<String, Integer> counts = new HashMap<>();
-
-                for (Map.Entry<String, Double> entry : distances.entrySet()) {
-                    if (counts.containsKey(entry.getKey()))
-                        counts.put(entry.getKey(), counts.get(entry.getKey()) + 1);
-                    else
-                        counts.put(entry.getKey(), 1);
-                }
-
-                String[] train_record_mostCount = Collections.max(counts.entrySet(), Map.Entry.comparingByValue()).getKey().split(",");
-                String train_attribute_mostCount = train_record_mostCount[train_record_mostCount.length - 1];
-
-                if (train_attribute_mostCount.equals(test_attribute))
+                if (train_attribute_mostCount.equals(test_decisionAttribute))
                     correctCount++;
                 else
                     incorrectCount++;
-
             }
 
             in_test.close();
@@ -90,9 +61,85 @@ public class Main {
         }
 
         double accuracy = 100.0 - ((double) incorrectCount / (correctCount + incorrectCount));
-        System.out.println(correctCount);
-        System.out.println(incorrectCount);
-        System.out.println(accuracy + "%");
 
+        // Display statistics
+        System.out.println("Statistics for " + dataChosen + ".test.data: ");
+        System.out.println("Correct count: " + correctCount);
+        System.out.println("Incorrect count: " + incorrectCount);
+        System.out.printf("Accuracy: %.2f%%\n", accuracy);
+
+
+        System.out.println("==================================================================");
+        // User input
+        System.out.print("Input a " + dimensionsNumber + "-dimensional vector to test (x,y,z...,n) or say \"quit\" to exit the program: ");
+        String userInput = scanner.nextLine();
+
+        while (!userInput.equals("quit")) {
+            Map<String, Double> distances = new LinkedHashMap<>();
+            try {
+                if (userInput.split(",").length != dimensionsNumber)
+                    throw new IllegalArgumentException();
+
+                for (String trainingRecord : trainingData) {
+                    Double distance = calculateDistance(trainingRecord, userInput);
+                    distances.put(trainingRecord, distance);
+                }
+            } catch (IllegalArgumentException e) {
+                System.out.print("Incorrect input. Please provide a " + dimensionsNumber + "-dimensional vector (x,y,z...,n) or say \"quit\" to exit the program: ");
+                userInput = scanner.nextLine();
+                continue;
+            }
+            distances = sortAndLimitMap(distances, k);
+            String train_attribute_mostCount = extractMostCountedAttribute(distances);
+
+            System.out.println("Etiquette for inputted vector: " + train_attribute_mostCount);
+
+            System.out.print("Input another vector or say \"quit\" to exit the program: ");
+            userInput = scanner.nextLine();
+        }
+    }
+
+    private static Double calculateDistance(String object1, String object2) throws IllegalArgumentException {
+        String[] object1_allElements = object1.split(",");
+        List<Double> object1_dimensions = new ArrayList<>();
+        for (int i = 0; i < dimensionsNumber; i++)
+            object1_dimensions.add(Double.parseDouble(object1_allElements[i]));
+
+        String[] object2_allElements = object2.split(",");
+        List<Double> object2_dimensions = new ArrayList<>();
+        for (int i = 0; i < dimensionsNumber ; i++) {
+            object2_dimensions.add(Double.parseDouble(object2_allElements[i]));
+        }
+
+        // Sum of (x1 - x2)^2
+        double sum = 0.0;
+        for (int i = 0; i < dimensionsNumber; i++)
+            sum += Math.pow(object2_dimensions.get(i) - object1_dimensions.get(i), 2);
+
+        return Math.sqrt(sum);
+    }
+
+    private static Map<String, Double> sortAndLimitMap(Map<String, Double> map, int limit) {
+        return map.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .limit(limit)
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey, Map.Entry::getValue, (e1, _) -> e1, LinkedHashMap::new
+                ));
+    }
+
+    private static String extractMostCountedAttribute(Map<String, Double> distances) {
+        Map<String, Integer> counts = new HashMap<>();
+
+        for (Map.Entry<String, Double> entry : distances.entrySet()) {
+            if (counts.containsKey(entry.getKey()))
+                counts.put(entry.getKey(), counts.get(entry.getKey()) + 1);
+            else
+                counts.put(entry.getKey(), 1);
+        }
+
+        String[] record_mostCount = Collections.max(counts.entrySet(), Map.Entry.comparingByValue()).getKey().split(",");
+
+        return record_mostCount[record_mostCount.length - 1];
     }
 }
