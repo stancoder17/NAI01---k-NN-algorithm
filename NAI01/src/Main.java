@@ -10,8 +10,8 @@ public class Main {
     private static boolean dimensionsFound = false;
 
     public static void main(String[] args) {
-        int k = 1; //Integer.parseInt(args[0]);
-        String dataChosen = "iris"; //args[1];
+        int k = Integer.parseInt(args[0]);
+        String dataChosen = args[1];
         int correctCount = 0;
         int incorrectCount = 0;
 
