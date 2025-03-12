@@ -26,3 +26,4 @@ replay_pid*
 #custom
 .idea
 NAI01/NAI01.iml
+NAI01/*.chartData.txt
